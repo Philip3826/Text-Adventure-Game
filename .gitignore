@@ -10,3 +10,6 @@ TestStuff.exe
 Types.o
 Types.hi
 Types.exe
+Utils.hi
+Utils.o
+Utils.exe

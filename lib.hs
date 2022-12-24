@@ -3,6 +3,8 @@ import Types
 import TestStuff
 import Prelude
 import Data.List (delete)
+import Utils
+
 
 executeCommand::World -> Command -> (World,WorldUpdateResult)
 executeCommand world command =
@@ -117,5 +119,5 @@ addItemToInventory (Hero name health power def inv) item = Hero name health powe
 displayInventory::World -> String
 displayInventory world =
     getItemsString inventory
-    where inventory = map snd (filter (\x -> fst x `elem` inventoryIDs) (allItems world))
-          inventoryIDs = heroInventory (worldhero world)
+    where inventory = map  (\x -> searchByKey x (allItems  world)) (heroInventory (worldhero world)) 
+        

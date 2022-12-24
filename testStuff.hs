@@ -1,5 +1,7 @@
 module TestStuff where
 import Types
+import Utils
+
 exItem :: Item
 exItem = Item "Sword" "A big bad sword" 1
 
