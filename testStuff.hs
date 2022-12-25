@@ -1,15 +1,16 @@
 module TestStuff where
 import Types
 import Utils
+import Lib
 
 exItem :: Item
-exItem = Item "Sword" "A big bad sword" 1
+exItem = Item "Sword" "A big bad sword" (Health 0) (Power 1) (Defence 0)
 
 shield::Item
-shield = Item "Shield" "A rusty Shield" 1
+shield = Item "Shield" "A rusty Shield" (Health 0) (Power 0) (Defence 1)
 
 axe :: Item
-axe = Item "Axe" "a woodcutters axe" 0
+axe = Item "Axe" "a woodcutters axe" (Health  0) (Power 1) (Defence 0)
 
 bartender :: Person
 bartender = Person "Bob" "Bartender in the inn of Bolksvile" (Health 1) (Power 1) (Defence 0)

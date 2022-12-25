@@ -1,9 +1,10 @@
 module Lib where
 import Types
-import TestStuff
+
 import Prelude
 import Data.List (delete)
 import Utils
+import Language.Haskell.TH (Type(ConT))
 
 
 executeCommand::World -> Command -> (World,WorldUpdateResult)
@@ -11,8 +12,10 @@ executeCommand world command =
     case command of 
         GoTo (EntityId command)-> (updateCurrentRoom world (EntityId command),Continue)
         Take (EntityId command) -> (takeFromRoom world (EntityId command),Continue)
+        Use (EntityId command) -> (useItem world (EntityId command),Continue)
         Inventory -> (world,Continue)
         Quit -> (world,End)
+        History -> (world,Continue)
         DefaultCommand -> (world,GameError)
 
 
@@ -29,6 +32,7 @@ parseCommand world input =
        ("fight": person) -> Fight (parsePerson world person)
        ("hit": person) -> Fight (parsePerson world person)
        ["inventory"] -> Inventory
+       ["history"] -> History
        ["quit"] -> Quit
        ["end"] -> Quit
        _ -> DefaultCommand
@@ -101,7 +105,7 @@ takeFromRoom :: World -> EntityId Item -> World
 takeFromRoom world item 
  | item == defaultEntityID = world
  | item `notElem` roomItems (snd (currentRoom world)) = world
- | otherwise = World (worldRooms world) (allItems world) (people world)  updatedRoom updatedHero
+ | otherwise = World (updateRoomInList (worldRooms world) updatedRoom) (allItems world) (people world)  updatedRoom updatedHero
     where updatedRoom = (fst (currentRoom world),removeItem (snd (currentRoom world)) item)
           updatedHero = addItemToInventory (worldhero world) item
 
@@ -115,9 +119,40 @@ removeItem room item =
 addItemToInventory:: Hero -> EntityId Item -> Hero
 addItemToInventory (Hero name health power def inv) item = Hero name health power def (item:inv)
 
---fix the filter to allow duplicates
 displayInventory::World -> String
 displayInventory world =
     getItemsString inventory
     where inventory = map  (\x -> searchByKey x (allItems  world)) (heroInventory (worldhero world)) 
         
+
+updateRoomInList::[(EntityId Room,Room)] -> (EntityId Room,Room) -> [(EntityId Room,Room)]
+updateRoomInList [] pair = []
+updateRoomInList (x:xs) pair =
+    if fst pair == fst x
+        then pair:updateRoomInList xs pair
+        else x:updateRoomInList xs pair 
+
+useItem::World -> EntityId Item -> World
+useItem world itemId 
+ | itemId == defaultEntityID = world
+ | itemId `notElem` inventory = world
+ | otherwise = World (worldRooms world) (allItems world) (people world) (currentRoom world) updatedHero
+    where inventory = heroInventory (worldhero world)
+          updatedHero = applyItemOnHero (worldhero world) item itemId
+            where item = searchByKey itemId (allItems world)
+
+
+applyItemOnHero::Hero -> Item  -> EntityId Item -> Hero
+applyItemOnHero hero item id = Hero (heroName hero) (heroHealth hero + itemHealth item) (heroPower hero + itemPower item) (heroDefence hero + itemDefence item) (delete id (heroInventory hero)) 
+
+
+
+displayHeroStats::World -> String
+displayHeroStats world =
+    unlines[heroName hero , "\n",
+             show (heroHealth hero), "\n" ,
+             show (heroPower hero), "\n" ,
+             show (heroDefence hero) , "\n",
+             displayInventory world]
+    where hero = worldhero world
+    

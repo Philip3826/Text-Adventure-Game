@@ -1,6 +1,5 @@
 module Types where
 import Prelude
-import Data.List (delete)
 import Data.Char (toLower)
 
 
@@ -14,6 +13,22 @@ defaultEntityID = EntityId 0
 newtype Health = Health Int deriving (Eq,Show)
 newtype Power = Power Int deriving (Eq,Show)
 newtype Defence = Defence Int deriving (Eq,Show)
+
+instance Num Power where
+    (+) (Power x) (Power y) = Power (x + y)
+    (-) (Power x) (Power y) = Power (x - y)
+    negate (Power x) = Power (negate x)
+
+instance Num Health where
+    (+) (Health x) (Health y) = Health (x + y)
+    (-) (Health x) (Health y) = Health (x - y)
+    
+
+instance Num Defence where
+    (+) (Defence x) (Defence y) = Defence (x + y)
+    (-) (Defence x) (Defence y) = Defence (x - y)
+
+
 
 data Room = Room
     {
@@ -29,7 +44,9 @@ data Item = Item
     {
         itemName :: String,
         itemDescription :: String,
-        itemPower :: Int
+        itemHealth :: Health,
+        itemPower :: Power,
+        itemDefence :: Defence
     }
     deriving (Eq,Show)
 
@@ -50,6 +67,7 @@ data Hero = Hero
         heroPower :: Power,
         heroDefence:: Defence,
         heroInventory :: [EntityId Item]
+        --heroEquiped :: [EntityId Item]
     }
     deriving (Eq,Show)
 
@@ -63,7 +81,8 @@ data World = World
     }
     deriving (Eq,Show)
 
-data Command  = GoTo (EntityId Room) | Take (EntityId Item) | Fight (EntityId Person) | Use (EntityId Item)| History | Inventory | DefaultCommand | Quit
+data Command  = GoTo (EntityId Room) | Take (EntityId Item) | Fight (EntityId Person) | Talk (EntityId Person) 
+                | Use (EntityId Item)| History | Inventory  | DefaultCommand | Quit 
     deriving (Eq,Show)
 
 data WorldUpdateResult = Continue | End | GameError 
