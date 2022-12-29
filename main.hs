@@ -37,4 +37,3 @@ main = do
     putStrLn "Welcome to .........\n"
     putStrLn $ renderRoom (snd (currentRoom initial)) initial
     gameLoop initial []
-    

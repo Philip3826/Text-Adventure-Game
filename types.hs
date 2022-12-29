@@ -10,25 +10,6 @@ newtype EntityId a = EntityId Int
 defaultEntityID :: EntityId a
 defaultEntityID = EntityId 0
 
-newtype Health = Health Int deriving (Eq,Show)
-newtype Power = Power Int deriving (Eq,Show)
-newtype Defence = Defence Int deriving (Eq,Show)
-
-instance Num Power where
-    (+) (Power x) (Power y) = Power (x + y)
-    (-) (Power x) (Power y) = Power (x - y)
-    negate (Power x) = Power (negate x)
-
-instance Num Health where
-    (+) (Health x) (Health y) = Health (x + y)
-    (-) (Health x) (Health y) = Health (x - y)
-    
-
-instance Num Defence where
-    (+) (Defence x) (Defence y) = Defence (x + y)
-    (-) (Defence x) (Defence y) = Defence (x - y)
-
-
 
 data Room = Room
     {
@@ -44,9 +25,7 @@ data Item = Item
     {
         itemName :: String,
         itemDescription :: String,
-        itemHealth :: Health,
-        itemPower :: Power,
-        itemDefence :: Defence
+        itemStats :: (Int,Int,Int)
     }
     deriving (Eq,Show)
 
@@ -54,18 +33,14 @@ data Person = Person
     {
         personName :: String,
         personDescription :: String,
-        personHealth :: Health,
-        personPower :: Power,
-        personDefence :: Defence
+        personStats :: (Int,Int,Int)
     }
     deriving (Eq,Show)
 
 data Hero = Hero
     {
         heroName :: String,
-        heroHealth :: Health,
-        heroPower :: Power,
-        heroDefence:: Defence,
+        heroStats :: (Int,Int,Int),
         heroInventory :: [EntityId Item]
         --heroEquiped :: [EntityId Item]
     }
@@ -75,7 +50,7 @@ data World = World
     {
         worldRooms :: [(EntityId Room,Room)],
         allItems :: [(EntityId Item,Item)],
-        people :: [(EntityId Person,Person)],
+        worldPeople :: [(EntityId Person,Person)],
         currentRoom :: (EntityId Room,Room),
         worldhero :: Hero
     }
@@ -86,5 +61,8 @@ data Command  = GoTo (EntityId Room) | Take (EntityId Item) | Fight (EntityId Pe
     deriving (Eq,Show)
 
 data WorldUpdateResult = Continue | End | GameError 
+    deriving (Eq,Show)
+
+data BattleResult = Win | Draw | Loss
     deriving (Eq,Show)
 
