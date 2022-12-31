@@ -60,9 +60,8 @@ data Command  = GoTo (EntityId Room) | Take (EntityId Item) | Fight (EntityId Pe
                 | Use (EntityId Item)| History | Inventory  | DefaultCommand | Quit 
     deriving (Eq,Show)
 
-data WorldUpdateResult = Continue | End | GameError 
+data WorldUpdateResult = Continue | End | GameError | InitiateFight
     deriving (Eq,Show)
 
-data BattleResult = Win | Draw | Loss
-    deriving (Eq,Show)
+
 

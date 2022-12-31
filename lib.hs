@@ -4,8 +4,10 @@ import Prelude
 import Data.List (delete)
 import Utils 
 import System.Random
-import Types (World(worldPeople))
-import TestStuff (hero)
+import Types 
+import GHC (roleAnnotDeclName)
+
+
 
 
 
@@ -15,6 +17,9 @@ executeCommand world command =
         GoTo (EntityId command)-> (updateCurrentRoom world (EntityId command),Continue)
         Take (EntityId command) -> (takeFromRoom world (EntityId command),Continue)
         Use (EntityId command) -> (useItem world (EntityId command),Continue)
+        Fight (EntityId command) -> if EntityId command `notElem` roomPeople (snd (currentRoom world))
+            then (world,GameError)
+            else (world,InitiateFight)
         Inventory -> (world,Continue)
         Quit -> (world,End)
         History -> (world,Continue)
@@ -162,31 +167,25 @@ displayHeroStats world =
     where hero = worldhero world
 
 
-battleLoop::World -> Hero -> EntityId Person -> (World,WorldUpdateResult)
-battleLoop world hero id 
- | getHeroStat hero myFirst <= 0 = (world,End)
- | getPersonStat person myFirst  <= 0 = (removeEnemyWorld,Continue)
- | otherwise = do 
-        rawHeroRoll <- randomRIO (1,6)
-        rawPersonRoll <- randomRIO (1,6)
-        let heroRoll = rawHeroRoll
-        let personRoll = rawPersonRoll
-        let battleResult = calculateBattle hero person (heroRoll,personRoll)
-        case (fst battleResult) of
-            Draw -> battleLoop world hero id 
-            Win ->  battleLoop dmgEnemyWorld hero id 
-            Loss -> battleLoop world dmgHero id 
-    where removeEnemyWorld = World (worldRooms world) (allItems world) (worldPeople world) (removePersonRoom (currentRoom world) id) hero
-          dmgEnemyWorld =   
+    
 
-calculateBattle::Hero -> Person -> (Int,Int) -> (BattleResult,Int)
-calculateBattle hero person (heroHit,enemyHit) 
- | heroDmg > enemyDmg = (Win,heroDmg - enemyDmg)
- | enemyDmg > heroDmg = (Loss,enemyDmg - heroDmg)
- | otherwise = (Draw,0)
-    where heroDmg = heroHit + getHeroStat hero mySecond
-          enemyDmg = enemyHit + getPersonStat person mySecond
-          
+getSingleDiceRoll::IO (Int,Int)
+getSingleDiceRoll = do
+    roll1 <- randomRIO (1,6)
+    roll2 <- randomRIO (1,6)
+    return (roll1,roll2)
+
+
+
+singleRoundOfCombat :: Hero -> Person ->(Int,Int) -> (Hero,Person)
+singleRoundOfCombat hero enemy roll = do
+    let heroRoll = fst roll
+        enemyRoll = snd roll
+        result = (heroRoll - getHeroStat hero mySecond) - (enemyRoll - getPersonStat enemy mySecond)
+    case result of
+        result | result > 0 -> (hero , applyDmgPerson enemy result)
+        0 -> (hero,enemy)
+        _ -> (applyDmgHero hero (negate result),enemy)
 
 applyDmgHero :: Hero -> Int -> Hero
 applyDmgHero (Hero name (hp,power,def) inventory) dmg = Hero name (hp - dmg , power , def) inventory
@@ -196,4 +195,4 @@ applyDmgPerson (Person name desc (hp,power,def)) dmg = Person name desc (hp - dm
 
 
 removePersonRoom:: Room -> EntityId Person -> Room
-removePersonRoom (Room name desc items people exits) id = Room name desc items (delete id people) exit
+removePersonRoom (Room name desc items people exits) id = Room name desc items (delete id people) exits
