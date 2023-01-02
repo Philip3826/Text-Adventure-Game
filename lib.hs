@@ -4,18 +4,12 @@ import Prelude
 import Data.List (delete)
 import Utils 
 import System.Random
-import Types 
-import GHC (roleAnnotDeclName)
-
-
-
 
 
 executeCommand::World -> Command -> (World,WorldUpdateResult)
 executeCommand world command =
     case command of 
         GoTo (EntityId command)-> (updateCurrentRoom world (EntityId command),Continue)
-        Take (EntityId command) -> (takeFromRoom world (EntityId command),Continue)
         Use (EntityId command) -> (useItem world (EntityId command),Continue)
         Fight (EntityId command) -> if EntityId command `notElem` roomPeople (snd (currentRoom world))
             then (world,GameError)
@@ -31,9 +25,9 @@ parseCommand world input =
     case words input of
        ("go":"to":room) -> GoTo (parseRoom world room)
        ("go" : "in" : room) -> GoTo (parseRoom world room)
-       ("pick":"up":item) -> Take (parseItem world item) 
-       ("pick":item) -> Take (parseItem world item) 
-       ("take":item) -> Take (parseItem world item)
+       ("pick":"up":item) -> Use (parseItem world item) 
+       ("pick":item) -> Use (parseItem world item) 
+       ("take":item) -> Use (parseItem world item)
        ("use" : item) -> Use (parseItem world item)
        ("equip": item) -> Use (parseItem world item)
        ("fight": person) -> Fight (parsePerson world person)
@@ -106,15 +100,16 @@ updateCurrentRoom world room
             where tmp = head ( filter (\x -> x == room) (roomOtherRooms (snd (currentRoom world))))
 
 
---TODO : fix this so the main copy of the room is being updated not the one that sits in currentRoom
--- go into the list of Rooms and update the room there
-takeFromRoom :: World -> EntityId Item -> World
-takeFromRoom world item 
- | item == defaultEntityID = world
- | item `notElem` roomItems (snd (currentRoom world)) = world
+useItem::World -> EntityId Item -> World
+useItem world id 
+ | id == defaultEntityID = world
+ | id `notElem` visibleItems = world
+ | id `elem` inventory = world
  | otherwise = World (updateRoomInList (worldRooms world) updatedRoom) (allItems world) (worldPeople world)  updatedRoom updatedHero
-    where updatedRoom = (fst (currentRoom world),removeItem (snd (currentRoom world)) item)
-          updatedHero = addItemToInventory (worldhero world) item
+    where visibleItems = roomItems (snd (currentRoom world))
+          inventory = heroInventory (worldhero world)
+          updatedRoom = (fst (currentRoom world),removeItem (snd (currentRoom world)) id)
+          updatedHero = applyItemOnHero (worldhero world) (searchByKey id (allItems world)) id
 
 removeItem:: Room -> EntityId Item -> Room
 removeItem room item =
@@ -123,8 +118,6 @@ removeItem room item =
         else Room (roomName room) (roomDescription room) updatedItems (roomPeople room) (roomOtherRooms room)
     where updatedItems = delete item (roomItems room) 
 
-addItemToInventory:: Hero -> EntityId Item -> Hero
-addItemToInventory (Hero name stats inv) item = Hero name stats (item:inv)
 
 displayInventory::World -> String
 displayInventory world =
@@ -139,24 +132,22 @@ updateRoomInList (x:xs) pair =
         then pair:updateRoomInList xs pair
         else x:updateRoomInList xs pair 
 
-useItem::World -> EntityId Item -> World
-useItem world itemId 
- | itemId == defaultEntityID = world
- | itemId `notElem` inventory = world
- | otherwise = World (worldRooms world) (allItems world) (worldPeople world) (currentRoom world) updatedHero
-    where inventory = heroInventory (worldhero world)
-          updatedHero = applyItemOnHero (worldhero world) item itemId
-            where item = searchByKey itemId (allItems world)
-
 
 applyItemOnHero::Hero -> Item  -> EntityId Item -> Hero
-applyItemOnHero hero item id = Hero (heroName hero) (newHealth, newPower, newDefence) (delete id (heroInventory hero)) 
+applyItemOnHero hero item id 
+ | itemType item == Health = Hero (heroName hero) (newHealth, newPower, newDefence) (itemCounters hero) (delete id (heroInventory hero))
+ | itemType item == Power = if fst (itemCounters hero) >= 2 
+        then hero
+        else Hero (heroName hero) (newHealth, newPower, newDefence) (fst (itemCounters hero) + 1 , snd (itemCounters hero)) (id:heroInventory hero)
+ | otherwise = if snd (itemCounters hero) >= 2
+        then hero
+        else Hero (heroName hero) (newHealth, newPower, newDefence) (fst (itemCounters hero) , snd (itemCounters hero) + 1) (id:heroInventory hero)
     where newHealth = getHeroStat hero myFirst + getItemStat item myFirst
           newPower = getHeroStat hero mySecond + getItemStat item mySecond
           newDefence = getHeroStat hero myThird + getItemStat item myThird
 
 
-
+{-add shit here -}
 displayHeroStats::World -> String
 displayHeroStats world =
     unlines[heroName hero , 
@@ -167,7 +158,6 @@ displayHeroStats world =
     where hero = worldhero world
 
 
-    
 
 getSingleDiceRoll::IO (Int,Int)
 getSingleDiceRoll = do
@@ -188,10 +178,16 @@ singleRoundOfCombat hero enemy roll = do
         _ -> (applyDmgHero hero (negate result),enemy)
 
 applyDmgHero :: Hero -> Int -> Hero
-applyDmgHero (Hero name (hp,power,def) inventory) dmg = Hero name (hp - dmg , power , def) inventory
+applyDmgHero (Hero name (hp,power,def) (countPower,countDef) inventory) dmg =
+    if dmg <= def
+        then Hero name (hp,power,def) (countPower,countDef) inventory 
+        else Hero name (hp - dmg , power , def) (countPower,countDef) inventory 
 
 applyDmgPerson :: Person -> Int -> Person
-applyDmgPerson (Person name desc (hp,power,def)) dmg = Person name desc (hp - dmg,power,def)
+applyDmgPerson (Person name desc (hp,power,def)) dmg = 
+    if dmg <= def
+        then Person name desc (hp,power,def)
+        else Person name desc (hp - dmg,power,def)
 
 
 removePersonRoom:: Room -> EntityId Person -> Room

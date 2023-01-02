@@ -40,11 +40,9 @@ gameLoop world history = do
             Inventory -> do
               putStrLn "Inventory : "
               putStrLn $ displayInventory updatedWorld
-            Take (EntityId command) -> do
+            Use (EntityId command) -> do
               let renderResult = renderRoom (snd (currentRoom updatedWorld)) updatedWorld
               putStrLn renderResult
-            Use (EntityId command) -> do
-              putStrLn (displayHeroStats updatedWorld)
             History -> do
               putStrLn $ unlines history  
         gameLoop updatedWorld (input:history)

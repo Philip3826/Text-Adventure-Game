@@ -25,6 +25,7 @@ data Item = Item
     {
         itemName :: String,
         itemDescription :: String,
+        itemType:: ItemType,
         itemStats :: (Int,Int,Int)
     }
     deriving (Eq,Show)
@@ -41,8 +42,9 @@ data Hero = Hero
     {
         heroName :: String,
         heroStats :: (Int,Int,Int),
+        itemCounters :: (Int,Int),
         heroInventory :: [EntityId Item]
-        --heroEquiped :: [EntityId Item]
+       
     }
     deriving (Eq,Show)
 
@@ -56,12 +58,13 @@ data World = World
     }
     deriving (Eq,Show)
 
-data Command  = GoTo (EntityId Room) | Take (EntityId Item) | Fight (EntityId Person) | Talk (EntityId Person) 
+data Command  = GoTo (EntityId Room) | Fight (EntityId Person) | Talk (EntityId Person) 
                 | Use (EntityId Item)| History | Inventory  | DefaultCommand | Quit 
     deriving (Eq,Show)
 
 data WorldUpdateResult = Continue | End | GameError | InitiateFight
     deriving (Eq,Show)
 
-
+data ItemType = Health | Power | Defence
+    deriving (Eq,Show)
 
