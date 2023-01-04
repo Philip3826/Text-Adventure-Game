@@ -58,11 +58,11 @@ data World = World
     }
     deriving (Eq,Show)
 
-data Command  = GoTo (EntityId Room) | Fight (EntityId Person) | Talk (EntityId Person) 
+data Command  = GoTo (EntityId Room) | Fight (EntityId Person) | See (EntityId Person) | Drop (EntityId Item)
                 | Use (EntityId Item)| History | Inventory  | DefaultCommand | Quit 
     deriving (Eq,Show)
 
-data WorldUpdateResult = Continue | End | GameError | InitiateFight
+data WorldUpdateResult = Continue | End | GameError | InitiateFight (EntityId Person)
     deriving (Eq,Show)
 
 data ItemType = Health | Power | Defence

@@ -16,3 +16,6 @@ getItemStat item func = func (itemStats item)
 getPersonStat person func = func (personStats person)
 
 getHeroStat hero func = func (heroStats hero)
+
+
+tupleSubstract (a,b,c) (x,y,z) = (a - x , b - y , c - z)

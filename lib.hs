@@ -11,12 +11,14 @@ executeCommand world command =
     case command of 
         GoTo (EntityId command)-> (updateCurrentRoom world (EntityId command),Continue)
         Use (EntityId command) -> (useItem world (EntityId command),Continue)
+        Drop (EntityId command) -> (dropItem world (EntityId command),Continue)
         Fight (EntityId command) -> if EntityId command `notElem` roomPeople (snd (currentRoom world))
             then (world,GameError)
-            else (world,InitiateFight)
+            else (world,InitiateFight (EntityId command))
         Inventory -> (world,Continue)
         Quit -> (world,End)
         History -> (world,Continue)
+        See (EntityId command)-> (world,Continue)
         DefaultCommand -> (world,GameError)
 
 
@@ -30,8 +32,11 @@ parseCommand world input =
        ("take":item) -> Use (parseItem world item)
        ("use" : item) -> Use (parseItem world item)
        ("equip": item) -> Use (parseItem world item)
+       ("drop" : item) -> Drop (parseItem world item)
+       ("Unequip" : item) -> Drop (parseItem world item)
        ("fight": person) -> Fight (parsePerson world person)
        ("hit": person) -> Fight (parsePerson world person)
+       ("see":person) -> See (parsePerson world person)
        ["inventory"] -> Inventory
        ["history"] -> History
        ["quit"] -> Quit
@@ -84,12 +89,11 @@ renderRoom room world =
     "Items: " ++ getItemsString items,
     "People: " ++ getPeopleString peopleInRoom,
     "You can go to: " ++ getRoomString exits]
-    where items = map snd (filter (\x -> fst x `elem` itemsIDs) (allItems world))
-          itemsIDs = roomItems room
-          peopleInRoom = map snd (filter (\x -> fst x `elem` peopleIDs) (worldPeople world))
-          peopleIDs = roomPeople room
-          exits = map snd (filter (\x -> fst x `elem` exitsIDs) (worldRooms world))
-          exitsIDs = roomOtherRooms room
+    where items = map (\x -> searchByKey x (allItems world)) (roomItems room) 
+          peopleInRoom = map (\x -> searchByKey x (worldPeople  world)) (roomPeople room)
+          exits = map (\x -> searchByKey x (worldRooms world)) (roomOtherRooms room)
+
+
 
 updateCurrentRoom :: World -> EntityId Room -> World
 updateCurrentRoom world room 
@@ -106,17 +110,41 @@ useItem world id
  | id `notElem` visibleItems = world
  | id `elem` inventory = world
  | otherwise = World (updateRoomInList (worldRooms world) updatedRoom) (allItems world) (worldPeople world)  updatedRoom updatedHero
-    where visibleItems = roomItems (snd (currentRoom world))
+    where item = searchByKey id (allItems world) 
+          visibleItems = roomItems (snd (currentRoom world))
           inventory = heroInventory (worldhero world)
-          updatedRoom = (fst (currentRoom world),removeItem (snd (currentRoom world)) id)
-          updatedHero = applyItemOnHero (worldhero world) (searchByKey id (allItems world)) id
+          updatedRoom = (fst (currentRoom world),removeItemRoom (snd (currentRoom world)) id)
+          updatedHero = applyItemOnHero (worldhero world) item id
 
-removeItem:: Room -> EntityId Item -> Room
-removeItem room item =
+dropItem::World -> EntityId Item -> World
+dropItem world id 
+ | id == defaultEntityID = world
+ | id `notElem` inventory = world
+ | otherwise = World updatedRooms (allItems world) (worldPeople world) updatedRoom updatedHero
+    where item = searchByKey id (allItems world)
+          inventory = heroInventory (worldhero world)
+          updatedHero = removeItemHero (worldhero world) item id
+          updatedRoom = (fst (currentRoom world),addItemRoom (snd (currentRoom world)) id)
+          updatedRooms = updateRoomInList (worldRooms world) updatedRoom
+
+
+removeItemHero :: Hero -> Item -> EntityId Item -> Hero
+removeItemHero hero item id 
+ | itemType item == Power = Hero (heroName hero) newStats (fst (itemCounters hero) - 1 , snd (itemCounters hero)) newInventory
+ | itemType item == Defence = Hero (heroName hero) newStats (fst (itemCounters hero)  , snd (itemCounters hero) - 1) newInventory
+ | otherwise = hero
+    where newStats = tupleSubstract (heroStats hero) (itemStats item)
+          newInventory = delete id (heroInventory hero) 
+
+removeItemRoom:: Room -> EntityId Item -> Room
+removeItemRoom room item =
     if item `notElem` roomItems room
         then room
         else Room (roomName room) (roomDescription room) updatedItems (roomPeople room) (roomOtherRooms room)
     where updatedItems = delete item (roomItems room) 
+
+addItemRoom::Room -> EntityId Item -> Room
+addItemRoom (Room name desc items people exits) id = Room name desc (id:items) people exits
 
 
 displayInventory::World -> String
@@ -147,7 +175,7 @@ applyItemOnHero hero item id
           newDefence = getHeroStat hero myThird + getItemStat item myThird
 
 
-{-add shit here -}
+
 displayHeroStats::World -> String
 displayHeroStats world =
     unlines[heroName hero , 
@@ -157,7 +185,12 @@ displayHeroStats world =
              displayInventory world]
     where hero = worldhero world
 
-
+seePerson::World -> EntityId Person -> String
+seePerson world id
+ | id == defaultEntityID = "There is no such character"
+ | id `notElem` roomPeople  (snd (currentRoom world)) = "Maybe he is in another room" 
+ | otherwise = unlines [personName person, personDescription person]
+    where person = searchByKey id (worldPeople world)
 
 getSingleDiceRoll::IO (Int,Int)
 getSingleDiceRoll = do
@@ -192,3 +225,5 @@ applyDmgPerson (Person name desc (hp,power,def)) dmg =
 
 removePersonRoom:: Room -> EntityId Person -> Room
 removePersonRoom (Room name desc items people exits) id = Room name desc items (delete id people) exits
+
+
