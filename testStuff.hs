@@ -23,7 +23,7 @@ nextRoom :: Room
 nextRoom = Room "Main Street" "The night is quiet and everyone is sleeping in their homes. There is a full moon" [] [] [EntityId 1]
 
 hero::Hero
-hero = Hero "Bob" (6,1,1) (1,1) [EntityId 3,EntityId 5]
+hero = Hero "Gosho" (6,1,1) (1,1) [EntityId 3,EntityId 5]
 
 initial :: World
 initial = World [(EntityId 1, exampleRoom), (EntityId 5 ,nextRoom)]  [(EntityId  2,exItem),(EntityId 3,axe),(EntityId 5,shield)] [(EntityId 4,bartender),(EntityId 6,pesho)] (EntityId 1,exampleRoom) hero

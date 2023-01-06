@@ -15,6 +15,7 @@ executeCommand world command =
         Fight (EntityId command) -> if EntityId command `notElem` roomPeople (snd (currentRoom world))
             then (world,GameError)
             else (world,InitiateFight (EntityId command))
+        Help -> (world,Continue)
         Inventory -> (world,Continue)
         Quit -> (world,End)
         History -> (world,Continue)
@@ -39,6 +40,7 @@ parseCommand world input =
        ("see":person) -> See (parsePerson world person)
        ["inventory"] -> Inventory
        ["history"] -> History
+       ["help"] -> Help
        ["quit"] -> Quit
        ["end"] -> Quit
        _ -> DefaultCommand
@@ -99,9 +101,11 @@ updateCurrentRoom :: World -> EntityId Room -> World
 updateCurrentRoom world room 
  | room == defaultEntityID = world
  | room `notElem` roomOtherRooms ( snd (currentRoom world)) = world
+ | not (null (roomPeople currRoom)) = world
  | otherwise = World (worldRooms world) (allItems world) (worldPeople world) newRoom (worldhero world)
     where newRoom = head (filter (\x -> fst x == tmp) (worldRooms world))
-            where tmp = head ( filter (\x -> x == room) (roomOtherRooms (snd (currentRoom world))))
+          tmp = head ( filter (\x -> x == room) (roomOtherRooms (snd (currentRoom world))))
+          currRoom = snd (currentRoom world)
 
 
 useItem::World -> EntityId Item -> World
@@ -192,6 +196,27 @@ seePerson world id
  | otherwise = unlines [personName person, personDescription person]
     where person = searchByKey id (worldPeople world)
 
+
+
+
+evaluateHit :: Bool -> String
+evaluateHit expression =
+  if expression
+    then "\nHit succesful!"
+    else "\nHit blocked!"
+
+
+evaluateFight::(Int,Int) -> (Hero,Person) -> String
+evaluateFight (heroRoll,enemyRoll) (hero,enemy) = 
+  if hit >= 0 
+    then rollMsg ++  "You attack " ++ personName enemy ++ " for " 
+             ++ show hit ++ " damage" ++ evaluateHit (hit > getPersonStat enemy myThird)
+    else rollMsg ++ "You were attacked by " ++ personName enemy ++ " for " ++ show (negate hit) 
+          ++ " damage" ++ evaluateHit (negate hit> getHeroStat hero myThird)
+  where rollMsg = "You rolled: " ++ show heroRoll ++ "\nThe enemy rolled: " ++ show enemyRoll ++ "\n"
+        hit = heroRoll + getHeroStat hero mySecond - enemyRoll - getPersonStat enemy mySecond
+
+
 getSingleDiceRoll::IO (Int,Int)
 getSingleDiceRoll = do
     roll1 <- randomRIO (1,6)
@@ -225,5 +250,17 @@ applyDmgPerson (Person name desc (hp,power,def)) dmg =
 
 removePersonRoom:: Room -> EntityId Person -> Room
 removePersonRoom (Room name desc items people exits) id = Room name desc items (delete id people) exits
+
+
+printHelp::[String]
+printHelp = 
+    ["Type \"go to\" or \"go in\" + place to travel",
+     "Type \"pick up\", \"pick\", \"take\", \"use\" or \"equip\" + an item to pick up and equip",
+     "Type \"fight\" or \" hit \" + person to fight a person in the room",
+     "Type see + person to gain additional info about the person",
+     "Type inventory to see your items",
+     "Type history to see your previous commands",
+     "Type quit or end to exit the game"]
+    
 
 

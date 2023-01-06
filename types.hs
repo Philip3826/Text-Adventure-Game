@@ -59,7 +59,7 @@ data World = World
     deriving (Eq,Show)
 
 data Command  = GoTo (EntityId Room) | Fight (EntityId Person) | See (EntityId Person) | Drop (EntityId Item)
-                | Use (EntityId Item)| History | Inventory  | DefaultCommand | Quit 
+                | Use (EntityId Item)| History | Inventory  | DefaultCommand | Quit | Help 
     deriving (Eq,Show)
 
 data WorldUpdateResult = Continue | End | GameError | InitiateFight (EntityId Person)
