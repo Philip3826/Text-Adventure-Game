@@ -65,6 +65,6 @@ data Command  = GoTo (EntityId Room) | Fight (EntityId Person) | See (EntityId P
 data WorldUpdateResult = Continue | End | GameError | InitiateFight (EntityId Person)
     deriving (Eq,Show)
 
-data ItemType = Health | Power | Defence
+data ItemType = Health | Power | Defence | Special
     deriving (Eq,Show)
 

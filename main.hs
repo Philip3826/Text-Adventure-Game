@@ -6,6 +6,10 @@ import Lib
 import Utils
 import System.Console.ANSI
 
+-- specialRoomLoop world command 0 = do
+--   putStrLn "The time has expired!\n Game Over!"
+-- specialRoomLoop world command n = do
+--   if 
 
 
 fightLoop::World -> Hero -> (EntityId Person,Person) -> [String] -> IO ()
@@ -25,14 +29,6 @@ fightLoop world hero enemy history
   where updatedWorld = World updatedWorldRooms (allItems world) (worldPeople world) updatedRoom hero
         updatedRoom = (fst(currentRoom world),removePersonRoom (snd (currentRoom world)) (fst enemy))
         updatedWorldRooms = updateRoomInList (worldRooms world) updatedRoom
-
-
-testRoll = do
-  roll1 <- getLine
-  roll2 <- getLine
-  let hroll = read roll1::Int
-      eroll = read roll2::Int
-  return (hroll,eroll)
 
 gameLoop :: World -> [String] -> IO ()
 gameLoop world history = do
@@ -60,25 +56,33 @@ gameLoop world history = do
                     putStrLn $ "You can't go there!\n" ++ renderResult
                   else
                     putStrLn  renderResult
+
             Inventory -> do
               putStrLn "Inventory : "
               putStrLn $ displayInventory updatedWorld
+
             Use (EntityId command) -> do
               let renderResult = renderRoom (snd (currentRoom updatedWorld)) updatedWorld
               if EntityId command == defaultEntityID
                 then putStrLn $ "No such item...\n" ++ renderResult
-                else putStrLn $ displayInventory updatedWorld ++ renderResult
+                else do 
+                  putStrLn $ displayHeroStats updatedWorld ++ renderResult ++ "\n"
+
             Drop (EntityId command) -> do
               let renderResult = renderRoom (snd (currentRoom updatedWorld)) updatedWorld
               putStrLn $ displayHeroStats updatedWorld
               putStrLn renderResult
+
             See (EntityId command) -> do
               let renderResult = seePerson updatedWorld (EntityId command)
               putStrLn renderResult
+
             History -> do
               putStrLn $ unlines history
+
             Help -> do
               putStrLn $ unlines printHelp
+
         gameLoop updatedWorld (input:history)
 
 --TODO :: add a way to clear the screen

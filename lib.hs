@@ -4,6 +4,8 @@ import Prelude
 import Data.List (delete)
 import Utils 
 import System.Random
+import Data.Char (toLower)
+
 
 
 executeCommand::World -> Command -> (World,WorldUpdateResult)
@@ -25,7 +27,7 @@ executeCommand world command =
 
 parseCommand::World -> String -> Command
 parseCommand world input =
-    case words input of
+    case words loweredInput of
        ("go":"to":room) -> GoTo (parseRoom world room)
        ("go" : "in" : room) -> GoTo (parseRoom world room)
        ("pick":"up":item) -> Use (parseItem world item) 
@@ -44,30 +46,41 @@ parseCommand world input =
        ["quit"] -> Quit
        ["end"] -> Quit
        _ -> DefaultCommand
-       
-   
+    where loweredInput = lowerString input
+
+
+
+parseSpecialCommand::World -> String -> Command
+parseSpecialCommand world input =
+    case words loweredInput of
+        ("break":"door":"with":item) -> Use (parseItem world item)
+        ("break":"lock":"with":item) -> Use (parseItem world item)
+        ("use":item) -> Use (parseItem world item)
+        ["lockpick","door"] -> Use (parseItem world ["lockpick"])
+    where loweredInput = lowerString input
+
 
 parseItem::World -> [String] -> EntityId Item
 parseItem world item =
     if null filtered
         then defaultEntityID
-        else fst (head filtered)
-    where filtered = filter (\x -> words (itemName (snd x)) ==  item) items
-            where items = allItems world
+        else head filtered
+    where filtered = keyListByName (unwords item) itemName (allItems world)
+          
 
 parsePerson::World -> [String] -> EntityId Person
 parsePerson world person = 
     if null filtered
         then defaultEntityID
-        else fst (head filtered)
-    where filtered = filter (\x -> words (personName (snd x)) == person) (worldPeople world)
+        else head filtered
+    where filtered = keyListByName (unwords person) personName (worldPeople world)
 
 parseRoom :: World -> [String] -> EntityId Room
 parseRoom world room =
     if null filtered
         then defaultEntityID
-        else fst (head filtered)
-    where filtered = filter (\x -> words (roomName (snd x)) == room) (worldRooms world)
+        else head filtered
+    where filtered = keyListByName (unwords room) roomName (worldRooms world)
             
 
 getItemsString :: [Item] -> String
@@ -113,6 +126,8 @@ useItem world id
  | id == defaultEntityID = world
  | id `notElem` visibleItems = world
  | id `elem` inventory = world
+ | itemType item == Power && fst (itemCounters (worldhero world)) >= 2 = world
+ | itemType item == Defence && snd (itemCounters (worldhero world)) >= 2 = world
  | otherwise = World (updateRoomInList (worldRooms world) updatedRoom) (allItems world) (worldPeople world)  updatedRoom updatedHero
     where item = searchByKey id (allItems world) 
           visibleItems = roomItems (snd (currentRoom world))
@@ -167,16 +182,11 @@ updateRoomInList (x:xs) pair =
 
 applyItemOnHero::Hero -> Item  -> EntityId Item -> Hero
 applyItemOnHero hero item id 
- | itemType item == Health = Hero (heroName hero) (newHealth, newPower, newDefence) (itemCounters hero) (delete id (heroInventory hero))
- | itemType item == Power = if fst (itemCounters hero) >= 2 
-        then hero
-        else Hero (heroName hero) (newHealth, newPower, newDefence) (fst (itemCounters hero) + 1 , snd (itemCounters hero)) (id:heroInventory hero)
- | otherwise = if snd (itemCounters hero) >= 2
-        then hero
-        else Hero (heroName hero) (newHealth, newPower, newDefence) (fst (itemCounters hero) , snd (itemCounters hero) + 1) (id:heroInventory hero)
-    where newHealth = getHeroStat hero myFirst + getItemStat item myFirst
-          newPower = getHeroStat hero mySecond + getItemStat item mySecond
-          newDefence = getHeroStat hero myThird + getItemStat item myThird
+ | itemType item == Health = Hero (heroName hero) newStats (itemCounters hero) (heroInventory hero)
+ | itemType item == Power = Hero (heroName hero) newStats (fst (itemCounters hero) + 1 , snd (itemCounters hero)) (id:heroInventory hero)
+ | itemType item == Defence = Hero (heroName hero) newStats (fst (itemCounters hero) , snd (itemCounters hero) + 1) (id:heroInventory hero)
+ | otherwise = Hero (heroName hero) (heroStats hero) (itemCounters hero) (id:heroInventory hero)
+    where newStats = tupleAddition (heroStats hero) (itemStats item)
 
 
 
@@ -186,7 +196,7 @@ displayHeroStats world =
              "Health: " ++ show (getHeroStat hero myFirst) ,
              "Power: " ++ show (getHeroStat hero mySecond) ,
              "Defence: " ++ show (getHeroStat hero myThird) ,  
-             displayInventory world]
+             "Inventory: " ++ displayInventory world]
     where hero = worldhero world
 
 seePerson::World -> EntityId Person -> String
