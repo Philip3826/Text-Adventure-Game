@@ -10,7 +10,9 @@ import Data.Char (toLower)
 
 executeCommand::World -> Command -> (World,WorldUpdateResult)
 executeCommand world command =
-    case command of 
+    case command of
+        GoTo (EntityId 11) -> (updateCurrentRoom world (EntityId 11),SpecialEncounter)
+        GoTo (EntityId 14) -> (updateCurrentRoom world (EntityId 14),End)
         GoTo (EntityId command)-> (updateCurrentRoom world (EntityId command),Continue)
         Use (EntityId command) -> (useItem world (EntityId command),Continue)
         Drop (EntityId command) -> (dropItem world (EntityId command),Continue)
@@ -21,7 +23,8 @@ executeCommand world command =
         Inventory -> (world,Continue)
         Quit -> (world,End)
         History -> (world,Continue)
-        See (EntityId command)-> (world,Continue)
+        LookAt (EntityId command)-> (world,Continue)
+        See (EntityId command) -> (world,Continue)
         DefaultCommand -> (world,GameError)
 
 
@@ -36,10 +39,12 @@ parseCommand world input =
        ("use" : item) -> Use (parseItem world item)
        ("equip": item) -> Use (parseItem world item)
        ("drop" : item) -> Drop (parseItem world item)
-       ("Unequip" : item) -> Drop (parseItem world item)
+       ("unequip" : item) -> Drop (parseItem world item)
+       ("see":item) -> See (parseItem world item)
+       ("look":"up":item) -> See (parseItem world item)
        ("fight": person) -> Fight (parsePerson world person)
        ("hit": person) -> Fight (parsePerson world person)
-       ("see":person) -> See (parsePerson world person)
+       ("look":"at":person) -> LookAt (parsePerson world person)
        ["inventory"] -> Inventory
        ["history"] -> History
        ["help"] -> Help
@@ -57,7 +62,21 @@ parseSpecialCommand world input =
         ("break":"lock":"with":item) -> Use (parseItem world item)
         ("use":item) -> Use (parseItem world item)
         ["lockpick","door"] -> Use (parseItem world ["lockpick"])
+        ["inventory"] -> Inventory
+        ["history"] -> History
+        ["help"] -> Help
+        ["quit"] -> Quit
+        ["end"] -> Quit
+        _ -> DefaultCommand
     where loweredInput = lowerString input
+
+evaluateSpecialCommand :: Item -> (WorldUpdateResult, String)
+evaluateSpecialCommand  item
+ | itemName item == "Axe" = (End,"You break open the door with your axe!")
+ | itemName item == "Lockpick" = (End,"You manage to open the door with the lockpick you got from the thief!")
+ | otherwise = (Continue,"This doesn't work!")
+
+
 
 
 parseItem::World -> [String] -> EntityId Item
@@ -121,6 +140,8 @@ updateCurrentRoom world room
           currRoom = snd (currentRoom world)
 
 
+   
+
 useItem::World -> EntityId Item -> World
 useItem world id 
  | id == defaultEntityID = world
@@ -151,7 +172,7 @@ removeItemHero :: Hero -> Item -> EntityId Item -> Hero
 removeItemHero hero item id 
  | itemType item == Power = Hero (heroName hero) newStats (fst (itemCounters hero) - 1 , snd (itemCounters hero)) newInventory
  | itemType item == Defence = Hero (heroName hero) newStats (fst (itemCounters hero)  , snd (itemCounters hero) - 1) newInventory
- | otherwise = hero
+ | otherwise = Hero (heroName hero) (heroStats hero) (itemCounters hero) (heroInventory hero)
     where newStats = tupleSubstract (heroStats hero) (itemStats item)
           newInventory = delete id (heroInventory hero) 
 
@@ -207,6 +228,14 @@ seePerson world id
     where person = searchByKey id (worldPeople world)
 
 
+seeItem::World -> EntityId Item -> String
+seeItem world id 
+ | id == defaultEntityID = "No such item."
+ | id `notElem` heroInventory (worldhero world) && id `notElem` roomItems (snd (currentRoom world)) = "No such item."
+ | otherwise = unlines [itemName item , itemDescription item]
+    where item = searchByKey id (allItems world)
+
+
 
 
 evaluateHit :: Bool -> String
@@ -239,7 +268,7 @@ singleRoundOfCombat :: Hero -> Person ->(Int,Int) -> (Hero,Person)
 singleRoundOfCombat hero enemy roll = do
     let heroRoll = fst roll
         enemyRoll = snd roll
-        result = (heroRoll - getHeroStat hero mySecond) - (enemyRoll - getPersonStat enemy mySecond)
+        result = (heroRoll + getHeroStat hero mySecond) - (enemyRoll + getPersonStat enemy mySecond)
     case result of
         result | result > 0 -> (hero , applyDmgPerson enemy result)
         0 -> (hero,enemy)
@@ -266,11 +295,13 @@ printHelp::[String]
 printHelp = 
     ["Type \"go to\" or \"go in\" + place to travel",
      "Type \"pick up\", \"pick\", \"take\", \"use\" or \"equip\" + an item to pick up and equip",
+     "Type \"drop\" or \" unequip\" + an item in your inventory to remove it ",
      "Type \"fight\" or \" hit \" + person to fight a person in the room",
-     "Type see + person to gain additional info about the person",
-     "Type inventory to see your items",
-     "Type history to see your previous commands",
-     "Type quit or end to exit the game"]
+     "Type \"look at\" + person to gain additional info about the person",
+     "Type \"see\" or \"look up\" + item to gain additional info about the item",
+     "Type \"inventory\" to see your items",
+     "Type \"history\" to see your previous commands",
+     "Type \"quit\" or \"end\" to exit the game"]
     
 
 
