@@ -3,16 +3,19 @@ import Types
 import Src
 import Lib
 import Utils
-import System.Console.ANSI
 import Entities
  
-
+{-
+  Receives world object , history of player commands as [string] and a integer that is a timer.
+  Calls parseSpecialCommand and then pattern matches the resulting command.
+  If n reaches zero then a game over message is displayed and we exit out of the loop.
+-}
 specialRoomLoop::World -> [String] -> Int -> IO()
 specialRoomLoop world history 0 = do
   putStrLn "The time has expired!\nGame Over!"
   return ()
 specialRoomLoop world history n = do
-  putStrLn $ "You have " ++ show n ++ " minutes left!"
+  putStrLn $ "You have " ++ show n ++ " minutes left! You have to get out of here!"
   putStrLn "What would you like to do ?"
   input <- getLine
   let command = parseSpecialCommand world input
@@ -28,8 +31,7 @@ specialRoomLoop world history n = do
       putStrLn $ unlines printHelp
       specialRoomLoop world (input:history) n
     Inventory -> do
-       putStrLn "Inventory : "
-       putStrLn $ displayInventory world
+       putStrLn $ "Inventory : " ++ displayInventory world
        specialRoomLoop world (input:history) n
     Use (EntityId command) -> do
       if EntityId command `notElem` heroInventory (worldhero world)
@@ -44,6 +46,16 @@ specialRoomLoop world history n = do
             then gameLoop world (input:history)
             else specialRoomLoop world (input:history) (n - 1)
 
+
+{-
+  Receives World object , Hero object , id and person pair and history as a [string].
+  Calls the singleRoundOfCombat function and stores the results in a variable. Then prints a fight status message with evaluateFight function.
+  Then it calls itself again with the hero and person object stored in the fightResult variable as arguments.
+  This function ends when:
+    - heroHealth reaches zero : a game over message is displayed and we exit out of the loop.
+    - enemy health reaches zero : a message for vicory is displayed. Then if the enemy defeated is the thief (EntityId 101) an item is added to the
+roomItems of the currentRoom. Then the enemy is removed from the currentRoom. 
+-}
 fightLoop::World -> Hero -> (EntityId Person,Person) -> [String] -> IO ()
 fightLoop world hero enemy history
  | getHeroStat hero myFirst <= 0 = do
@@ -71,7 +83,16 @@ fightLoop world hero enemy history
         addedItemUpdateWorldRoom = updateRoomInList (worldRooms world) newItemRoom
 
 
-
+{-
+  Receives a World object and history of the commands as a [String]. The user is asked to give a command as a string which is then parsed and executed.
+  Then we do a case by  the variable result which is of type WorldUpdateResult.  
+  result cases : 
+  - End : quits the loop.
+  - GameError: the user has sumbitted a command that cannot be parsed. The loop is called with no change to the world and the unparsed string is added to the history
+  - InitiateFight: calls the fightLoop.
+  - SpecialEncounter: calls the specialEncounterLoop if the id  of the room is correct.
+  - Continue: we do a case block on the command variable and display an output message based on the given command.
+-}
 
 gameLoop :: World -> [String] -> IO ()
 gameLoop world history = do
@@ -116,8 +137,7 @@ gameLoop world history = do
                     putStrLn  renderResult
                     
             Inventory -> do
-              putStrLn "Inventory : "
-              putStrLn $ displayInventory updatedWorld ++ "\n"
+              putStrLn $ "Inventory : " ++ displayInventory updatedWorld ++ "\n"
 
             Use (EntityId command) -> do
               let renderResult = renderRoom (snd (currentRoom updatedWorld)) updatedWorld

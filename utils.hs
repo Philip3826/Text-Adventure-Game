@@ -24,7 +24,6 @@ myThird(_,_,x) = x
 
 getItemStat item func = func (itemStats item)
 getPersonStat person func = func (personStats person)
-
 getHeroStat hero func = func (heroStats hero)
 
 
